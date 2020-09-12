@@ -7,7 +7,7 @@
 
         /* ------------------------------------------------------------ */  
     function createBoundingBox( primitive ){
-        var vertices = primitive.vertices.tolist();
+        var vertices = primitive.vertices;
     
         var minimumX = vertices[0][0];
     
@@ -49,8 +49,6 @@
         }
     
         primitive.boundingBox = boundingBox;
-        
-        console.log(boundingBox);
         return primitive;
     }
     
@@ -75,7 +73,7 @@
     }
     
     function checkPixelInPolygon(x , y , primitive ){
-        var vertices = primitive.vertices.tolist();
+        var vertices = primitive.vertices;
     
         var shapeVectors = [];
     
@@ -117,7 +115,7 @@
         })
         return retorno;
     }
-    
+
     
     function checkPixelInCircle(x ,y ,primitive ){
         if ((x - primitive.center.get(0))**2 + (y - primitive.center.get(1))**2 > primitive.radius**2){
@@ -138,7 +136,25 @@
                 }
         }
     }
+
+    function isReflexiveTriangle(vertices){
+        var angle = ((vertices[1][0]-vertices[0][0]) * (vertices[2][1]-vertices[1][1])) - ((vertices[2][0] - vertices[1][0]) * (vertices[1][1] - vertices[0][1]));
         
+        if (angle < 0){
+            return true;
+        }
+        return false;
+    }
+
+    function removeElementFromArray(element,array){
+        var i ;
+        for(i=0; i<array.length; i++){
+            if(element[0]==array[i][0] && element[1]==array[i][1] ){
+                array.splice(i,1)
+                return array;
+            }
+        }
+    }
     
     function Screen( width, height, scene ) {
         this.width = width;
@@ -155,17 +171,64 @@
                 
                 var preprop_scene = [];
 
+                function earClipping(primitive){
+                    var verticesList = primitive.vertices;
+                    if (verticesList.length <= 3){
+                        preprop_scene.push( createBoundingBox(primitive) );                    
+                        return 
+                    }
+
+                    verticesList.forEach((vertice,index) => {
+                        
+                        var triangle = [verticesList[index-1],vertice,verticesList[index+1]];
+
+                        switch(index){
+                            case verticesList.length - 1:
+                                var triangle = [verticesList[index-1],vertice,verticesList[0]];
+                                break;
+                            case 0:
+                                var triangle = [verticesList[verticesList.length - 1],vertice,verticesList[index+1]];
+                                break;
+                            default:
+                                var triangle = [verticesList[index-1],vertice,verticesList[index+1]];
+                                break;
+                        }
+
+                        var localPrimitive = {
+                            vertices: triangle,
+                            color: primitive.color  
+                        }
+
+                        var existsVerticeInTriangle = false;
+                        for (var polygonVertices of verticesList) {
+                            if (triangle.includes(polygonVertices) == false){
+                                if (checkPixelInPolygon(polygonVertices[0], polygonVertices[1], localPrimitive)){
+                                    existsVerticeInTriangle = true;
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        console.log(triangle);
+
+                        if (existsVerticeInTriangle == false && isReflexiveTriangle(triangle) == false){
+                            preprop_scene.push(createBoundingBox(localPrimitive));
+                            primitive.vertices = removeElementFromArray(vertice, primitive.vertices);
+                            return earClipping(primitive);
+                        }
+                    })
+                }
+
                 for( var primitive of scene ) {
 
                     if(primitive.shape == "circle"){
-                        console.log("É CÍRCULO .........")
                         preprop_scene.push(createCircleBoundingBox(primitive));
                     }
                     else{
-                    preprop_scene.push( createBoundingBox(primitive) );                    
+                    primitive.vertices = primitive.vertices.tolist();
+                    earClipping(primitive);                    
                     }
                 }
-
                 return preprop_scene;
             },
 
