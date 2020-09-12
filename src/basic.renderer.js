@@ -180,7 +180,7 @@
 
                     verticesList.forEach((vertice,index) => {
                         
-                        var triangle = [verticesList[index-1],vertice,verticesList[index+1]];
+                        var triangle;
 
                         switch(index){
                             case verticesList.length - 1:
